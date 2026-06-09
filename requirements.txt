@@ -1,0 +1,4 @@
+﻿gymnasium==0.29.1
+tianshou==2.0.1
+numpy<2
+matplotlib

@@ -1,0 +1,11 @@
+__pycache__/
+*.py[cod]
+
+results_*/
+compare_*/
+
+*.pth
+*.zip
+*.npz
+*.csv
+*.png
