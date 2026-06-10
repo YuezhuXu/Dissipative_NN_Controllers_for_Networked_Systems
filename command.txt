@@ -1,11 +1,20 @@
-﻿# Train inverted-sine connected MSD
-python train_baseline_td3.py --env_type sine --N 5 --graph complete --m default --d default --k default --dt 0.02 --episode_len 250 --umax 12.0 --q_weight 1.0 --v_weight 0.3 --u_weight 0.03 --terminal_weight 0.0 --q_init_low -2.4 --q_init_high 2.4 --v_init_low -0.4 --v_init_high 0.4 --actor_mode residual --linear_init=-4.8,-1.2,0.0 --action_scale 12.0 --actor_hidden_layers 64,64,64 --actor_activation elu --critic_hidden_layers 128,128,128 --critic_activation elu --actor_lr 5e-6 --critic_lr 1e-4 --batch_size 512 --total_steps 100000 --start_steps 0 --eval_every 500 --eval_episodes 20 --early_stop_final_norm 0.05 --early_stop_patience 3 --best_patience 80 --best_min_delta 0.1 --gamma 0.98 --tau 0.005 --exploration_noise 0.05 --policy_noise 0.05 --policy_delay 20 --save_dir results_sine_inverted_complete
+# Find analytical local gains for the sine-MSD network
+python find_sine_msd_stabilizing_k_analytical.py --N 5 --m default --d default --k default --q_max 2.4 --v_max 0.4 --umax 12.0 --output sine_msd_stabilizing_k.npz
+
+# Optional: compute local QSR certificates
+python compute_sine_msd_qsr.py --N 5 --graph complete --coupling 0.5 --m default --d default --k default --q_max 2.4 --omega 2.0 --output sine_msd_qsr.npz
+
+# Optional: synthesize local gains from the stored QSR certificates
+python find_sine_msd_stabilizing_k_qsr.py --qsr sine_msd_qsr.npz --graph complete --coupling 0.5 --gain_bound 10.0 --output sine_msd_stabilizing_k_qsr.npz
+
+# Train inverted-sine residual NN using stored sine-MSD K
+python train_baseline_td3.py --env_type sine --N 5 --graph complete --coupling 0.5 --m default --d default --k default --dt 0.02 --episode_len 250 --umax 12.0 --q_weight 1.0 --v_weight 0.3 --u_weight 0.03 --terminal_weight 0.0 --q_init_low -2.4 --q_init_high 2.4 --v_init_low -0.4 --v_init_high 0.4 --actor_mode residual --linear_init_path sine_msd_stabilizing_k.npz --action_scale 12.0 --actor_hidden_layers 64,64,64 --actor_activation elu --critic_hidden_layers 128,128,128 --critic_activation elu --actor_lr 5e-6 --critic_lr 1e-4 --batch_size 512 --total_steps 100000 --start_steps 0 --eval_every 500 --eval_episodes 20 --early_stop_final_norm 0.05 --early_stop_patience 3 --best_patience 80 --best_min_delta 0.1 --gamma 0.98 --tau 0.005 --exploration_noise 0.05 --policy_noise 0.05 --policy_delay 20 --save_dir results_sine_inverted_complete
+
+# Train inverted-sine residual NN using manually assigned K
+python train_baseline_td3.py --env_type sine --N 5 --graph complete --coupling 0.5 --m default --d default --k default --dt 0.02 --episode_len 250 --umax 12.0 --q_weight 1.0 --v_weight 0.3 --u_weight 0.03 --terminal_weight 0.0 --q_init_low -2.4 --q_init_high 2.4 --v_init_low -0.4 --v_init_high 0.4 --actor_mode residual --linear_init=-4.8,-1.2,0.0 --action_scale 12.0 --actor_hidden_layers 64,64,64 --actor_activation elu --critic_hidden_layers 128,128,128 --critic_activation elu --actor_lr 5e-6 --critic_lr 1e-4 --batch_size 512 --total_steps 100000 --start_steps 0 --eval_every 500 --eval_episodes 20 --early_stop_final_norm 0.05 --early_stop_patience 3 --best_patience 80 --best_min_delta 0.1 --gamma 0.98 --tau 0.005 --exploration_noise 0.05 --policy_noise 0.05 --policy_delay 20 --save_dir results_sine_inverted_complete_manual
 
 # Train linear controller on inverted-sine connected MSD
-python train_baseline_td3.py --env_type sine --N 5 --graph complete --m default --d default --k default --dt 0.02 --episode_len 250 --umax 12.0 --q_weight 10.0 --v_weight 3.0 --u_weight 0.1 --terminal_weight 0.0 --q_init_low -2.4 --q_init_high 2.4 --v_init_low -0.4 --v_init_high 0.4 --actor_mode linear --linear_init=-4.8,-1.2,0.0 --action_scale 12.0 --actor_hidden_layers 64,64,64 --actor_activation elu --critic_hidden_layers 64,64,64 --critic_activation elu --actor_lr 5e-6 --critic_lr 5e-6 --batch_size 512 --total_steps 100000 --start_steps 0 --eval_every 250 --eval_episodes 100 --early_stop_final_norm 0.05 --early_stop_patience 3 --best_patience 20 --best_min_delta 0.1 --gamma 0.98 --tau 0.005 --exploration_noise 0.05 --policy_noise 0.05 --policy_delay 20 --save_dir results_sine_trained_linear_complete
-
-# Train residual controller on linear connected MSD
-python train_baseline_td3.py --env_type msd --N 5 --graph complete --m default --d default --k default --dt 0.05 --episode_len 200 --umax 1.0 --q_weight 1.0 --v_weight 0.3 --u_weight 0.05 --terminal_weight 0.0 --q_init_low -0.5 --q_init_high 0.5 --v_init_low -0.2 --v_init_high 0.2 --actor_mode residual --linear_init=-4.8,-1.2,0.0 --action_scale 1.0 --actor_hidden_layers 64,64,64 --actor_activation elu --critic_hidden_layers 128,128,128 --critic_activation elu --actor_lr 3e-6 --critic_lr 3e-6 --buffer_size 500000 --batch_size 512 --total_steps 30000 --start_steps 0 --eval_every 250 --eval_episodes 5 --early_stop_final_norm 0.05 --early_stop_patience 3 --best_patience 80 --best_min_delta 0.1 --gamma 0.97 --tau 0.005 --exploration_noise 0.001 --policy_noise 0.0 --noise_clip 0.5 --policy_delay 10 --save_dir results_msd_complete
+python train_baseline_td3.py --env_type sine --N 5 --graph complete --coupling 0.5 --m default --d default --k default --dt 0.02 --episode_len 250 --umax 12.0 --q_weight 10.0 --v_weight 3.0 --u_weight 0.1 --terminal_weight 0.0 --q_init_low -2.4 --q_init_high 2.4 --v_init_low -0.4 --v_init_high 0.4 --actor_mode linear --linear_init=-4.8,-1.2,0.0 --action_scale 12.0 --actor_hidden_layers 64,64,64 --actor_activation elu --critic_hidden_layers 64,64,64 --critic_activation elu --actor_lr 5e-6 --critic_lr 5e-6 --batch_size 512 --total_steps 100000 --start_steps 0 --eval_every 250 --eval_episodes 100 --early_stop_final_norm 0.05 --early_stop_patience 3 --best_patience 20 --best_min_delta 0.1 --gamma 0.98 --tau 0.005 --exploration_noise 0.05 --policy_noise 0.05 --policy_delay 20 --save_dir results_sine_trained_linear_complete
 
 # Evaluate best sine model
 python evaluate.py results_sine_inverted_complete/best_model.pth --env sine
@@ -13,11 +22,20 @@ python evaluate.py results_sine_inverted_complete/best_model.pth --env sine
 # Evaluate final sine model
 python evaluate.py results_sine_inverted_complete/final_model.pth --env sine
 
-# Compare two sine models
+# Roll out and plot the stored sine-MSD fixed linear controller
+python evaluate.py --fixed_linear --linear_gain_path sine_msd_stabilizing_k.npz --action_scale 12.0 --env sine --seed 123 --plot sine_msd_initial_k_rollout.png
+
+# Roll out and plot a manually assigned fixed linear controller
+python evaluate.py --fixed_linear --linear_gain=-4.8,-1.2,0.0 --action_scale 12.0 --env sine --seed 123 --plot manual_k_rollout.png
+
+# Compare best and final sine models
 python compare_models.py --model_a results_sine_inverted_complete/best_model.pth --model_b results_sine_inverted_complete/final_model.pth --label_a best --label_b final --env sine --save_dir compare_sine_best_vs_final
 
-# Compare fixed linear baseline with trained residual controller
-python compare_models.py --fixed_linear_a --linear_gain=-4.8,-1.2,0.0 --action_scale 12.0 --model_b results_sine_inverted_complete/best_model.pth --label_a fixed_linear --label_b residual --env sine --save_dir compare_fixed_linear_vs_residual
+# Compare stored sine-MSD K with the trained residual NN
+python compare_models.py --fixed_linear_a --linear_gain_path sine_msd_stabilizing_k.npz --action_scale 12.0 --model_b results_sine_inverted_complete/best_model.pth --label_a fixed_linear_stored_k --label_b residual --env sine --save_dir compare_fixed_linear_stored_k_vs_residual
+
+# Compare manually assigned fixed linear baseline with the trained residual NN
+python compare_models.py --fixed_linear_a --linear_gain=-4.8,-1.2,0.0 --action_scale 12.0 --model_b results_sine_inverted_complete/best_model.pth --label_a fixed_linear_manual_k --label_b residual --env sine --save_dir compare_fixed_linear_manual_k_vs_residual
 
 # Compare trained linear controller with trained residual controller
 python compare_models.py --model_a results_sine_trained_linear_complete/best_model.pth --model_b results_sine_inverted_complete/best_model.pth --label_a trained_linear --label_b residual --env sine --save_dir compare_trained_linear_vs_residual

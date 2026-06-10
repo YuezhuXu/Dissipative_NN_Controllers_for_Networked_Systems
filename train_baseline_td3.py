@@ -1,4 +1,5 @@
 import argparse
+import logging
 import os
 import random
 
@@ -6,6 +7,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 from tianshou.data import Collector, ReplayBuffer
+from tianshou.env import DummyVectorEnv
 from tianshou.utils.torch_utils import policy_within_training_step
 
 from envs.coupled_msd_env import CoupledMSDEnv
@@ -45,7 +47,10 @@ def parse_args():
     parser.add_argument("--v_init_high", type=float, default=0.4)
 
     parser.add_argument("--actor_mode", choices=["residual", "linear"], default="residual")
-    parser.add_argument("--linear_init", default="-4.8,-1.2,0.0")
+    parser.add_argument("--linear_init")
+    parser.add_argument(
+        "--linear_init_path", default="sine_msd_stabilizing_k.npz"
+    )
     parser.add_argument("--action_scale", type=float, default=12.0)
     parser.add_argument("--actor_hidden_layers", default="64,64,64")
     parser.add_argument("--critic_hidden_layers", default="128,128,128")
@@ -158,9 +163,16 @@ def main():
     if args.action_scale <= 0 or args.action_scale > args.umax:
         raise ValueError("action_scale must satisfy 0 < action_scale <= umax.")
 
-    linear_init = parse_list(args.linear_init)
-    if len(linear_init) != 3:
-        raise ValueError("linear_init must contain gains for [q_i, v_i, z_i].")
+    if args.linear_init is not None:
+        linear_init = parse_list(args.linear_init)
+    else:
+        linear_init = np.load(args.linear_init_path)["K"].tolist()
+    linear_init_array = np.asarray(linear_init)
+    if linear_init_array.shape not in {(3,), (args.N, 3)}:
+        raise ValueError(
+            "linear_init must have shape (3,) or (N, 3) for "
+            "[q_i, v_i, z_i]."
+        )
 
     random.seed(args.seed)
     np.random.seed(args.seed)
@@ -194,7 +206,11 @@ def main():
     algorithm = build_td3(env, config, device)
     model = TD3Model(algorithm)
     buffer = ReplayBuffer(args.buffer_size)
-    collector = Collector(algorithm, env, buffer, exploration_noise=True)
+    collector_env = DummyVectorEnv([lambda: env])
+    logging.getLogger("tianshou.data.collector").setLevel(logging.CRITICAL)
+    collector = Collector(
+        algorithm, collector_env, buffer, exploration_noise=True
+    )
     collector.reset(gym_reset_kwargs={"seed": args.seed})
 
     best_model_reward = -np.inf

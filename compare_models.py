@@ -15,6 +15,10 @@ class FixedLinearPolicy:
         self.adjacency = env.A
         self.degree = env.degree
         self.gain = np.asarray(gain, dtype=np.float32)
+        if self.gain.shape == (3,):
+            self.gain = np.repeat(self.gain[None, :], self.n, axis=0)
+        if self.gain.shape != (self.n, 3):
+            raise ValueError("gain must have shape (3,) or (N, 3).")
         self.action_scale = action_scale
         self.umax = env.umax
 
@@ -23,7 +27,7 @@ class FixedLinearPolicy:
         v = observation[self.n:]
         z = self.adjacency @ q - self.degree * q
         features = np.stack((q, v, z), axis=1)
-        raw_action = features @ self.gain
+        raw_action = np.sum(features * self.gain, axis=1)
         physical_action = self.action_scale * np.tanh(
             raw_action / self.action_scale
         )
@@ -125,7 +129,10 @@ def main():
     parser.add_argument("--episodes", type=int, default=20)
     parser.add_argument("--label_a", default="model_a")
     parser.add_argument("--label_b", default="model_b")
-    parser.add_argument("--linear_gain", default="-4.8,-1.2,0.0")
+    parser.add_argument("--linear_gain")
+    parser.add_argument(
+        "--linear_gain_path", default="sine_msd_stabilizing_k.npz"
+    )
     parser.add_argument("--action_scale", type=float)
     args = parser.parse_args()
 
@@ -134,7 +141,15 @@ def main():
     env_b = CoupledMSDEnv(args.env)
     if args.fixed_linear_a:
         action_scale = env_a.umax if args.action_scale is None else args.action_scale
-        model_a = FixedLinearPolicy(env_a, parse_gain(args.linear_gain), action_scale)
+        if args.linear_gain is not None:
+            gain = parse_gain(args.linear_gain)
+        else:
+            gain = np.load(args.linear_gain_path)["K"]
+            if gain.shape not in {(3,), (env_a.n, 3)}:
+                raise ValueError(
+                    "stored K must have shape (3,) or (N, 3)."
+                )
+        model_a = FixedLinearPolicy(env_a, gain, action_scale)
     else:
         model_a = load_model(args.model_a, env_a)
     model_b = load_model(args.model_b, env_b)

@@ -40,9 +40,12 @@ class ResidualController(nn.Module):
         adjacency = torch.as_tensor(adjacency, dtype=torch.float32)
         self.register_buffer("adjacency", adjacency)
         self.register_buffer("degree", adjacency.sum(dim=1))
-        self.linear_gain = nn.Parameter(
-            torch.as_tensor(linear_init, dtype=torch.float32).repeat(self.n, 1)
-        )
+        linear_init = torch.as_tensor(linear_init, dtype=torch.float32)
+        if linear_init.ndim == 1:
+            linear_init = linear_init.repeat(self.n, 1)
+        if linear_init.shape != (self.n, 3):
+            raise ValueError("linear_init must have shape (3,) or (N, 3).")
+        self.linear_gain = nn.Parameter(linear_init)
         self.local_nets = nn.ModuleList()
         if self.actor_mode == "residual":
             self.local_nets.extend(
