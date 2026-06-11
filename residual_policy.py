@@ -1,9 +1,10 @@
 import numpy as np
 import torch
 import torch.nn as nn
+from torch.optim.lr_scheduler import LambdaLR
 from tianshou.algorithm import TD3
 from tianshou.algorithm.modelfree.ddpg import ContinuousDeterministicPolicy
-from tianshou.algorithm.optim import AdamOptimizerFactory
+from tianshou.algorithm.optim import AdamOptimizerFactory, LRSchedulerFactory
 from tianshou.exploration import GaussianNoise
 from tianshou.utils.net.common import ModuleWithVectorOutput, Net
 from tianshou.utils.net.continuous import (
@@ -17,6 +18,37 @@ ACTIVATIONS = {
     "tanh": nn.Tanh,
     "elu": nn.ELU,
 }
+
+
+class ExponentialLRSchedulerFactory(LRSchedulerFactory):
+    def __init__(self, initial_lr, decay_rate, decay_steps, min_lr):
+        self.initial_lr = initial_lr
+        self.decay_rate = decay_rate
+        self.decay_steps = decay_steps
+        self.min_lr = min_lr
+
+    def create_scheduler(self, optim):
+        min_factor = self.min_lr / self.initial_lr
+        return LambdaLR(
+            optim,
+            lr_lambda=lambda update: max(
+                min_factor,
+                self.decay_rate ** (update / self.decay_steps),
+            ),
+        )
+
+
+def optimizer_factory(config, prefix):
+    initial_lr = config[f"{prefix}_lr"]
+    scheduler = ExponentialLRSchedulerFactory(
+        initial_lr=initial_lr,
+        decay_rate=config.get(f"{prefix}_lr_decay_rate", 1.0),
+        decay_steps=config.get("lr_decay_steps", 10_000),
+        min_lr=config.get(f"min_{prefix}_lr", 0.0),
+    )
+    return AdamOptimizerFactory(lr=initial_lr).with_lr_scheduler_factory(
+        scheduler
+    )
 
 
 class ResidualController(nn.Module):
@@ -153,17 +185,16 @@ def build_td3(env, config, device):
     )
     algorithm = TD3(
         policy=policy,
-        policy_optim=AdamOptimizerFactory(lr=config["actor_lr"]),
+        policy_optim=optimizer_factory(config, "actor"),
         critic=critic1,
-        critic_optim=AdamOptimizerFactory(lr=config["critic_lr"]),
+        critic_optim=optimizer_factory(config, "critic"),
         critic2=critic2,
-        critic2_optim=AdamOptimizerFactory(lr=config["critic_lr"]),
+        critic2_optim=optimizer_factory(config, "critic"),
         tau=config["tau"],
         gamma=config["gamma"],
         policy_noise=config["policy_noise"] / config["umax"],
         update_actor_freq=config["policy_delay"],
         noise_clip=config["noise_clip"] / config["umax"],
-        n_step_return_horizon=1,
     )
     return algorithm
 

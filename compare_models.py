@@ -125,6 +125,7 @@ def main():
     model_a.add_argument("--fixed_linear_a", action="store_true")
     parser.add_argument("--model_b", required=True)
     parser.add_argument("--env", choices=["sine", "msd"], default="sine")
+    parser.add_argument("--episode_len", type=int)
     parser.add_argument("--save_dir", default="compare_two_models")
     parser.add_argument("--episodes", type=int, default=20)
     parser.add_argument("--label_a", default="model_a")
@@ -137,8 +138,8 @@ def main():
     args = parser.parse_args()
 
     os.makedirs(args.save_dir, exist_ok=True)
-    env_a = CoupledMSDEnv(args.env)
-    env_b = CoupledMSDEnv(args.env)
+    env_a = CoupledMSDEnv(args.env, episode_len=args.episode_len)
+    env_b = CoupledMSDEnv(args.env, episode_len=args.episode_len)
     if args.fixed_linear_a:
         action_scale = env_a.umax if args.action_scale is None else args.action_scale
         if args.linear_gain is not None:

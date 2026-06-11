@@ -76,23 +76,7 @@ def solve_stabilizing_k(Q_blocks, S_blocks, R_blocks, H, gain_bound):
     if problem.status not in {cp.OPTIMAL, cp.OPTIMAL_INACCURATE}:
         raise RuntimeError(f"Controller synthesis failed: {problem.status}")
 
-    target_margin = max(float(margin.value) - 1e-5, 0.0)
-    top_left = Q + S @ X + X.T @ S.T + target_margin * np.eye(2 * n)
-    lmi = cp.bmat(
-        [[top_left, X.T @ R_sqrt], [R_sqrt @ X, -np.eye(n)]]
-    )
-    problem = cp.Problem(
-        cp.Minimize(cp.sum_squares(cp.vstack(local_gains))),
-        [
-            lmi << 0,
-            *[cp.norm(gain, 2) <= gain_bound for gain in local_gains],
-        ],
-    )
-    problem.solve(solver="CLARABEL")
-    if problem.status not in {cp.OPTIMAL, cp.OPTIMAL_INACCURATE}:
-        raise RuntimeError(f"Gain minimization failed: {problem.status}")
-
-    return np.vstack([gain.value for gain in local_gains]), target_margin
+    return np.vstack([gain.value for gain in local_gains]), float(margin.value)
 
 
 def main():

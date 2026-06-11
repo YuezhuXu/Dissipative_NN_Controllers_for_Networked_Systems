@@ -39,10 +39,11 @@ def main():
     parser.add_argument("--action_scale", type=float)
     parser.add_argument("--plot")
     parser.add_argument("--env", choices=["sine", "msd"], default="sine")
+    parser.add_argument("--episode_len", type=int)
     parser.add_argument("--seed", type=int, default=123)
     args = parser.parse_args()
 
-    env = CoupledMSDEnv(args.env)
+    env = CoupledMSDEnv(args.env, episode_len=args.episode_len)
     if args.fixed_linear:
         if args.linear_gain is not None:
             gain = parse_gain(args.linear_gain)

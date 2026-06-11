@@ -59,6 +59,11 @@ def parse_args():
 
     parser.add_argument("--actor_lr", type=float, default=5e-6)
     parser.add_argument("--critic_lr", type=float, default=1e-4)
+    parser.add_argument("--actor_lr_decay_rate", type=float, default=0.95)
+    parser.add_argument("--critic_lr_decay_rate", type=float, default=0.95)
+    parser.add_argument("--lr_decay_steps", type=int, default=10_000)
+    parser.add_argument("--min_actor_lr", type=float, default=1e-6)
+    parser.add_argument("--min_critic_lr", type=float, default=1e-5)
     parser.add_argument("--buffer_size", type=int, default=500_000)
     parser.add_argument("--batch_size", type=int, default=512)
     parser.add_argument("--total_steps", type=int, default=100_000)
@@ -162,6 +167,16 @@ def main():
     args = parse_args()
     if args.action_scale <= 0 or args.action_scale > args.umax:
         raise ValueError("action_scale must satisfy 0 < action_scale <= umax.")
+    if not 0 < args.actor_lr_decay_rate <= 1:
+        raise ValueError("actor_lr_decay_rate must satisfy 0 < rate <= 1.")
+    if not 0 < args.critic_lr_decay_rate <= 1:
+        raise ValueError("critic_lr_decay_rate must satisfy 0 < rate <= 1.")
+    if args.lr_decay_steps <= 0:
+        raise ValueError("lr_decay_steps must be positive.")
+    if not 0 <= args.min_actor_lr <= args.actor_lr:
+        raise ValueError("min_actor_lr must satisfy 0 <= min <= actor_lr.")
+    if not 0 <= args.min_critic_lr <= args.critic_lr:
+        raise ValueError("min_critic_lr must satisfy 0 <= min <= critic_lr.")
 
     if args.linear_init is not None:
         linear_init = parse_list(args.linear_init)
@@ -195,6 +210,11 @@ def main():
         "critic_activation": args.critic_activation,
         "actor_lr": args.actor_lr,
         "critic_lr": args.critic_lr,
+        "actor_lr_decay_rate": args.actor_lr_decay_rate,
+        "critic_lr_decay_rate": args.critic_lr_decay_rate,
+        "lr_decay_steps": args.lr_decay_steps,
+        "min_actor_lr": args.min_actor_lr,
+        "min_critic_lr": args.min_critic_lr,
         "gamma": args.gamma,
         "tau": args.tau,
         "exploration_noise": args.exploration_noise,
